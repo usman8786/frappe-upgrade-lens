@@ -12,7 +12,7 @@ frappe.pages["upgrade-matrix-dashboard"].on_page_show = function (wrapper) {
 
 function load_upgrade_lens_dashboard(wrapper) {
 	const $parent = $(wrapper).find(".layout-main-section");
-	$parent.empty();
+	$parent.addClass("upgrade-lens-page").empty();
 
 	frappe.require([
 		"/assets/upgrade_lens/dist/style.css",

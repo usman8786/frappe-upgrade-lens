@@ -1,7 +1,19 @@
 /* Upgrade Lens — Frappe Desk native styling only */
 
 .upgrade-lens-dashboard {
-	padding: var(--padding-md) 0 var(--padding-2xl);
+	padding: var(--padding-md) var(--padding-lg) var(--padding-2xl);
+	box-sizing: border-box;
+	max-width: 100%;
+}
+
+/* Breathing room from layout-main-section edges and scrollbar */
+.layout-main-section.upgrade-lens-page {
+	padding: var(--padding-sm) var(--padding-md) var(--padding-lg);
+	overflow-x: auto;
+}
+
+.layout-main-section > .upgrade-lens-dashboard {
+	margin: 0;
 }
 
 .ul-toolbar {
@@ -39,6 +51,7 @@
 
 .ul-scan-section {
 	margin-bottom: var(--margin-md);
+	padding: var(--padding-md);
 }
 
 .ul-scan-section .section-head {
