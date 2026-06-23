@@ -133,6 +133,11 @@
 	border-left: 3px solid var(--orange-500);
 }
 
+.ul-line-ranges {
+	color: var(--text-muted);
+	font-style: italic;
+}
+
 .ul-empty {
 	display: flex;
 	align-items: center;

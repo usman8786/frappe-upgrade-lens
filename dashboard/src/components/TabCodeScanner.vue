@@ -29,6 +29,17 @@ function gitStatusLabel(report) {
 	if (key && GIT_STATUS_LABELS[key]) return __(GIT_STATUS_LABELS[key]);
 	return report.status || "—";
 }
+
+function formatLineRanges(ranges) {
+	if (!ranges?.length) return "";
+	return ranges
+		.map((range) =>
+			range.line_from === range.line_to
+				? __("line {0}", [range.line_from])
+				: __("lines {0}–{1}", [range.line_from, range.line_to])
+		)
+		.join(", ");
+}
 </script>
 
 <template>
@@ -159,6 +170,9 @@ function gitStatusLabel(report) {
 						<ul v-if="report.modified_files?.length" class="margin-top text-small text-muted">
 							<li v-for="file in report.modified_files.slice(0, 8)" :key="file.path">
 								<code>{{ file.status }}</code> {{ file.path }}
+								<span v-if="file.line_ranges?.length" class="ul-line-ranges">
+									· {{ formatLineRanges(file.line_ranges) }}
+								</span>
 							</li>
 						</ul>
 					</li>

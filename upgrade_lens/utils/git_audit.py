@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 from pathlib import Path
 
@@ -168,6 +169,11 @@ def get_git_upstream_report(app_name: str, app_version: str | None = None) -> di
 		}
 
 	modified_files = _parse_name_status(diff.stdout or "")
+	line_ranges_by_path = _parse_unified_diff_line_ranges(
+		_run_git(app_path, "diff", "-U0", upstream_ref).stdout or ""
+	)
+	for item in modified_files:
+		item["line_ranges"] = line_ranges_by_path.get(item["path"], [])
 
 	# Track uncommitted changes separately for clearer reporting.
 	uncommitted_diff = _run_git(app_path, "diff", "--name-status", "HEAD")
@@ -216,8 +222,67 @@ def _parse_name_status(output: str) -> list[dict]:
 		if len(parts) != 2:
 			continue
 		status, path = parts
-		files.append({"status": status, "path": path})
+		files.append({"status": status, "path": path, "line_ranges": []})
 	return files
+
+
+_HUNK_HEADER = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
+
+
+def _merge_line_ranges(ranges: list[tuple[int, int]]) -> list[tuple[int, int]]:
+	if not ranges:
+		return []
+	ordered = sorted(ranges)
+	merged: list[tuple[int, int]] = [ordered[0]]
+	for start, end in ordered[1:]:
+		last_start, last_end = merged[-1]
+		if start <= last_end + 1:
+			merged[-1] = (last_start, max(last_end, end))
+		else:
+			merged.append((start, end))
+	return merged
+
+
+def _parse_unified_diff_line_ranges(output: str) -> dict[str, list[dict]]:
+	"""Parse ``git diff -U0`` hunks into per-file line ranges (working tree coordinates)."""
+	ranges_by_file: dict[str, list[tuple[int, int]]] = {}
+	current_file: str | None = None
+
+	for line in output.splitlines():
+		if line.startswith("diff --git "):
+			parts = line.split()
+			if len(parts) >= 4 and parts[3].startswith("b/"):
+				current_file = parts[3][2:]
+			continue
+		if line.startswith("+++ b/"):
+			current_file = line[6:]
+			if current_file == "/dev/null":
+				current_file = None
+			continue
+		if line.startswith("--- "):
+			continue
+
+		match = _HUNK_HEADER.match(line)
+		if not match or not current_file:
+			continue
+
+		new_start = int(match.group(3))
+		new_count = int(match.group(4) or "1")
+		if new_count > 0:
+			line_from = new_start
+			line_to = new_start + new_count - 1
+		else:
+			old_start = int(match.group(1))
+			old_count = int(match.group(2) or "1")
+			line_from = old_start
+			line_to = old_start + old_count - 1
+
+		ranges_by_file.setdefault(current_file, []).append((line_from, line_to))
+
+	return {
+		path: [{"line_from": start, "line_to": end} for start, end in _merge_line_ranges(ranges)]
+		for path, ranges in ranges_by_file.items()
+	}
 
 
 def summarize_hooks(app_name: str) -> dict:

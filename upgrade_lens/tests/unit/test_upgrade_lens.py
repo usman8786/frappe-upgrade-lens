@@ -168,6 +168,15 @@ class TestGitAudit(unittest.TestCase):
 			result = subprocess.CompletedProcess(args, 0, "", "")
 			if args[:3] == ("diff", "--name-status", "v16.22.0"):
 				result.stdout = "M\tfrappe/hooks.py\n"
+			elif args[:2] == ("diff", "-U0") and args[2] == "v16.22.0":
+				result.stdout = (
+					"diff --git a/frappe/hooks.py b/frappe/hooks.py\n"
+					"--- a/frappe/hooks.py\n"
+					"+++ b/frappe/hooks.py\n"
+					"@@ -199 +199 @@\n"
+					"-\told line\n"
+					"+\tnew line\n"
+				)
 			elif args[:3] == ("diff", "--name-status", "HEAD"):
 				result.stdout = "M\tfrappe/hooks.py\n"
 			return result
@@ -186,6 +195,47 @@ class TestGitAudit(unittest.TestCase):
 		self.assertEqual(report["status"], "dirty")
 		self.assertEqual(report["modified_count"], 1)
 		self.assertTrue(report["has_uncommitted_changes"])
+		self.assertEqual(report["modified_files"][0]["line_ranges"], [{"line_from": 199, "line_to": 199}])
+
+
+class TestDiffLineRanges(unittest.TestCase):
+	def test_single_line_change(self):
+		from upgrade_lens.utils.git_audit import _parse_unified_diff_line_ranges
+
+		output = (
+			"diff --git a/frappe/hooks.py b/frappe/hooks.py\n"
+			"--- a/frappe/hooks.py\n"
+			"+++ b/frappe/hooks.py\n"
+			"@@ -199 +199 @@\n"
+		)
+		ranges = _parse_unified_diff_line_ranges(output)
+		self.assertEqual(ranges["frappe/hooks.py"], [{"line_from": 199, "line_to": 199}])
+
+	def test_multi_line_hunk_and_merge(self):
+		from upgrade_lens.utils.git_audit import _parse_unified_diff_line_ranges
+
+		output = (
+			"diff --git a/frappe/hooks.py b/frappe/hooks.py\n"
+			"+++ b/frappe/hooks.py\n"
+			"@@ -10,3 +10,5 @@\n"
+			"@@ -16,1 +16,1 @@\n"
+		)
+		ranges = _parse_unified_diff_line_ranges(output)
+		self.assertEqual(
+			ranges["frappe/hooks.py"],
+			[{"line_from": 10, "line_to": 14}, {"line_from": 16, "line_to": 16}],
+		)
+
+	def test_deleted_lines_use_upstream_coordinates(self):
+		from upgrade_lens.utils.git_audit import _parse_unified_diff_line_ranges
+
+		output = (
+			"diff --git a/frappe/hooks.py b/frappe/hooks.py\n"
+			"+++ b/frappe/hooks.py\n"
+			"@@ -42,4 +0,0 @@\n"
+		)
+		ranges = _parse_unified_diff_line_ranges(output)
+		self.assertEqual(ranges["frappe/hooks.py"], [{"line_from": 42, "line_to": 45}])
 
 
 if __name__ == "__main__":
