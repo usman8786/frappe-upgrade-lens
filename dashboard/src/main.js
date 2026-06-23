@@ -1,5 +1,7 @@
 import { createApp } from "vue";
 import App from "./App.vue";
+import { __ } from "./translate.js";
+import "./styles/dashboard.css";
 
 class UpgradeLensDashboard {
 	constructor({ wrapper, page }) {
@@ -19,5 +21,3 @@ if (typeof frappe !== "undefined") {
 	frappe.provide("frappe.ui");
 	frappe.ui.UpgradeLensDashboard = UpgradeLensDashboard;
 }
-
-export default UpgradeLensDashboard;

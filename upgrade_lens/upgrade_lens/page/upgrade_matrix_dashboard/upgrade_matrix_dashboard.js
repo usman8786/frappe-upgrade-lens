@@ -18,11 +18,13 @@ function load_upgrade_lens_dashboard(wrapper) {
 		"/assets/upgrade_lens/dist/style.css",
 		"/assets/upgrade_lens/dist/upgrade_lens_dashboard.js",
 	]).then(() => {
-		if (frappe.ui.UpgradeLensDashboard) {
-			frappe.upgrade_lens_dashboard = new frappe.ui.UpgradeLensDashboard({
+		if (!frappe.ui.UpgradeLensDashboard) {
+			frappe.msgprint(__("Upgrade Lens dashboard failed to load. Rebuild assets: bench build --app upgrade_lens"));
+			return;
+		}
+		frappe.upgrade_lens_dashboard = new frappe.ui.UpgradeLensDashboard({
 				wrapper: $parent,
 				page: wrapper.page,
 			});
-		}
 	});
 }

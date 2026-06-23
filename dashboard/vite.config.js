@@ -7,15 +7,14 @@ export default defineConfig({
 	build: {
 		outDir: path.resolve(__dirname, "../upgrade_lens/public/dist"),
 		emptyOutDir: true,
-		lib: {
-			entry: path.resolve(__dirname, "src/main.js"),
-			name: "UpgradeLensDashboard",
-			formats: ["iife"],
-			fileName: () => "upgrade_lens_dashboard.js",
-		},
+		cssCodeSplit: false,
 		rollupOptions: {
+			input: path.resolve(__dirname, "src/main.js"),
 			output: {
-				extend: true,
+				format: "iife",
+				name: "UpgradeLensDashboardModule",
+				entryFileNames: "upgrade_lens_dashboard.js",
+				assetFileNames: "style.css",
 				inlineDynamicImports: true,
 			},
 		},

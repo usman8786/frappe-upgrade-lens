@@ -1,5 +1,7 @@
 <script setup>
-const props = defineProps({
+import { __ } from "../translate.js";
+
+defineProps({
 	strategy: { type: Object, default: () => ({}) },
 });
 
@@ -11,16 +13,33 @@ function copyCommands(commands) {
 </script>
 
 <template>
-	<div class="tab-panel">
-		<div v-for="path in strategy.paths || []" :key="path.id" class="path-card" :class="{ recommended: path.recommended }">
-			<h4>{{ path.title }}</h4>
+	<div class="widget-group">
+		<div
+			v-for="path in strategy.paths || []"
+			:key="path.id"
+			class="ul-path-card"
+			:class="{ recommended: path.recommended }"
+		>
+			<h4>
+				{{ path.title }}
+				<span
+					v-if="path.recommended"
+					class="indicator-pill no-indicator-dot green margin-left"
+				>
+					{{ __("Recommended") }}
+				</span>
+			</h4>
 			<p>{{ path.description }}</p>
 			<ul class="checklist">
 				<li v-for="item in path.checklist || []" :key="item">{{ item }}</li>
 			</ul>
-			<pre class="commands">{{ (path.commands || []).join("\n") }}</pre>
-			<button class="btn btn-sm btn-default" @click="copyCommands(path.commands)">Copy Commands</button>
+			<pre class="ul-commands">{{ (path.commands || []).join("\n") }}</pre>
+			<button class="btn btn-default btn-sm" @click="copyCommands(path.commands)">
+				{{ __("Copy Commands") }}
+			</button>
 		</div>
-		<p v-if="!strategy.paths?.length" class="empty-state">No migration paths available for this scan.</p>
+		<div v-if="!strategy.paths?.length" class="ul-empty">
+			{{ __("No migration paths available for this scan.") }}
+		</div>
 	</div>
 </template>
