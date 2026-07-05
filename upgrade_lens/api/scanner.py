@@ -6,7 +6,6 @@ import importlib
 import json
 import os
 import re
-import subprocess
 import sys
 from pathlib import Path
 
@@ -15,6 +14,7 @@ import frappe
 from upgrade_lens.api import conflicts, rules, strategist
 from upgrade_lens.utils import db_metrics
 from upgrade_lens.utils.git_audit import get_git_upstream_report, summarize_hooks
+from upgrade_lens.utils.node_version import get_node_version
 from upgrade_lens.utils.version import major_version, normalize_target_version
 
 
@@ -70,19 +70,7 @@ def _load_app_registry() -> dict:
 
 
 def _get_node_version() -> str | None:
-	try:
-		result = subprocess.run(
-			["node", "--version"],
-			capture_output=True,
-			text=True,
-			timeout=10,
-			check=False,
-		)
-		if result.returncode == 0:
-			return result.stdout.strip()
-	except Exception:
-		return None
-	return None
+	return get_node_version()
 
 
 def _get_python_version() -> str:

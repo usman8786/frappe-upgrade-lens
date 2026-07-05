@@ -3,19 +3,26 @@
 from __future__ import annotations
 
 import json
-import os
 import re
-import subprocess
+from dataclasses import dataclass
 from pathlib import Path
 
 import frappe
+from git import GitCommandError, InvalidGitRepositoryError, Repo
 
 from upgrade_lens.utils.version import major_version
 
 CACHE_KEY_PREFIX = "upgrade_lens:git_audit:"
 MAX_DIFF_FILES = 500
-GIT_TIMEOUT_SECONDS = 30
 OFFICIAL_APP_NAMES: set[str] | None = None
+_SAFE_GIT_REF = re.compile(r"^[\w./-]+$")
+
+
+@dataclass
+class GitCommandResult:
+	returncode: int
+	stdout: str = ""
+	stderr: str = ""
 
 
 def _get_registry() -> dict:
@@ -39,15 +46,57 @@ def _cache_hours() -> int:
 	return int(frappe.conf.get("upgrade_lens_git_fetch_cache_hours", 24))
 
 
-def _run_git(app_path: Path, *args: str) -> subprocess.CompletedProcess[str]:
-	return subprocess.run(
-		["git", *args],
-		cwd=app_path,
-		capture_output=True,
-		text=True,
-		timeout=GIT_TIMEOUT_SECONDS,
-		check=False,
-	)
+def _validate_git_ref(ref: str) -> str:
+	ref = ref.strip()
+	if not ref or not _SAFE_GIT_REF.match(ref):
+		raise ValueError(f"Unsupported git ref: {ref!r}")
+	return ref
+
+
+def _open_repo(app_path: Path) -> Repo | None:
+	try:
+		return Repo(str(app_path))
+	except (InvalidGitRepositoryError, Exception):
+		return None
+
+
+def _run_git(app_path: Path, *args: str) -> GitCommandResult:
+	"""Run a read-only git command via GitPython (no direct subprocess usage)."""
+	repo = _open_repo(app_path)
+	if repo is None:
+		return GitCommandResult(returncode=128, stderr="Not a git repository")
+
+	command = args[0] if args else ""
+	try:
+		if command == "rev-parse" and len(args) >= 3 and args[1] == "--verify":
+			repo.git.rev_parse("--verify", _validate_git_ref(args[2]))
+			return GitCommandResult(returncode=0)
+
+		if command == "remote" and len(args) >= 3 and args[1] == "get-url":
+			remote_name = _validate_git_ref(args[2])
+			url = repo.remotes[remote_name].url
+			return GitCommandResult(returncode=0, stdout=(url or "").strip())
+
+		if command == "fetch":
+			repo.remotes.origin.fetch(tags=True, quiet=True)
+			return GitCommandResult(returncode=0)
+
+		if command == "diff":
+			diff_args = list(args[1:])
+			if diff_args and diff_args[-1] not in {"HEAD"}:
+				diff_args[-1] = _validate_git_ref(diff_args[-1])
+			output = repo.git.diff(*diff_args)
+			return GitCommandResult(returncode=0, stdout=output or "")
+
+		return GitCommandResult(returncode=1, stderr=f"Unsupported git command: {command}")
+	except GitCommandError as exc:
+		return GitCommandResult(
+			returncode=exc.status or 1,
+			stdout=(exc.stdout or "").strip(),
+			stderr=(exc.stderr or "").strip(),
+		)
+	except ValueError as exc:
+		return GitCommandResult(returncode=1, stderr=str(exc))
 
 
 def _get_app_git_root(app_name: str) -> Path:

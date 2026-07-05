@@ -137,6 +137,16 @@ class TestStrategist(unittest.TestCase):
 		self.assertIn("Downgrade", suggestion)
 
 
+class TestNodeVersion(unittest.TestCase):
+	def test_normalize_version(self):
+		from upgrade_lens.utils.node_version import _normalize_version
+
+		self.assertEqual(_normalize_version("20.11.0"), "v20.11.0")
+		self.assertEqual(_normalize_version("v20"), "v20.0.0")
+		self.assertEqual(_normalize_version("18.17"), "v18.17.0")
+		self.assertIsNone(_normalize_version("not-a-version"))
+
+
 class TestGitAudit(unittest.TestCase):
 	@patch("upgrade_lens.utils.git_audit._is_official_app", return_value=False)
 	def test_skips_custom_app(self, _mock_official):
@@ -165,7 +175,9 @@ class TestGitAudit(unittest.TestCase):
 		mock_frappe.get_module.return_value = type("M", (), {"__version__": "16.22.0"})()
 
 		def git_side_effect(app_path, *args):
-			result = subprocess.CompletedProcess(args, 0, "", "")
+			from upgrade_lens.utils.git_audit import GitCommandResult
+
+			result = GitCommandResult(returncode=0)
 			if args[:3] == ("diff", "--name-status", "v16.22.0"):
 				result.stdout = "M\tfrappe/hooks.py\n"
 			elif args[:2] == ("diff", "-U0") and args[2] == "v16.22.0":
@@ -180,8 +192,6 @@ class TestGitAudit(unittest.TestCase):
 			elif args[:3] == ("diff", "--name-status", "HEAD"):
 				result.stdout = "M\tfrappe/hooks.py\n"
 			return result
-
-		import subprocess
 
 		mock_git.side_effect = git_side_effect
 
