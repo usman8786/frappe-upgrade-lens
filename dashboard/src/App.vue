@@ -47,13 +47,8 @@ onMounted(() => {
 			</div>
 			<div class="form-group">
 				<label class="control-label">{{ __("Target Major Version") }}</label>
-				<input
-					v-model="targetVersion"
-					type="text"
-					class="form-control"
-					placeholder="17"
-					@keyup.enter="loadSummary"
-				/>
+				<input v-model="targetVersion" type="text" class="form-control" placeholder="17"
+					@keyup.enter="loadSummary" />
 			</div>
 			<button class="btn btn-primary btn-sm" :disabled="loading" @click="loadSummary">
 				{{ loading ? __("Scanning...") : __("Run Scan") }}
@@ -88,11 +83,7 @@ onMounted(() => {
 				{{ __("Recommended migration approach based on your risk score and infrastructure compatibility.") }}
 			</p>
 
-			<TabCodeScanner
-				v-if="activeTab === 'scanner'"
-				:conflicts="summary.conflicts"
-				:apps="summary.apps"
-			/>
+			<TabCodeScanner v-if="activeTab === 'scanner'" :conflicts="summary.conflicts" :apps="summary.apps" />
 			<TabStrategyPlanner v-else :strategy="summary.strategy" />
 		</template>
 	</div>
